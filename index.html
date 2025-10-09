@@ -7,7 +7,26 @@
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <h1>initial setup</h1>
+
+    <div class="weather-app-container">
+        <div class="weather-search">
+            <input type="text" id="city-input" placeholder="Enter city name...">
+            <button id="search-btn">Search</button>
+        </div>
+        <div class="weather-main">
+            <div class="weather-location" id="location">City, Country</div>
+            <div class="weather-icon-temp">
+                <img id="weather-icon" src="" alt="Weather Icon" />
+                <span class="weather-temp" id="temperature">--°C</span>
+            </div>
+            <div class="weather-description" id="description">Weather description</div>
+        </div>
+        <div class="weather-details">
+            <div>Humidity: <span id="humidity">--%</span></div>
+            <div>Wind: <span id="wind">-- km/h</span></div>
+            <div>Feels like: <span id="feels-like">--°C</span></div>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>
