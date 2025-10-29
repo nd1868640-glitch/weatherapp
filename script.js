@@ -9,6 +9,43 @@ document.getElementById("search-btn").addEventListener("click", () => {
   }
 });
 
+// Create a 'Use my location' button dynamically and append next to the search button
+;(function createLocationButton() {
+  const searchRow = document.querySelector('.weather-search');
+  if (!searchRow) return;
+  const locBtn = document.createElement('button');
+  locBtn.id = 'loc-btn';
+  locBtn.textContent = 'Use my location';
+  locBtn.style.padding = '0.6rem 1rem';
+  locBtn.style.borderRadius = '8px';
+  locBtn.style.border = 'none';
+  locBtn.style.background = '#f0f0f0';
+  locBtn.style.cursor = 'pointer';
+  locBtn.style.marginLeft = '4px';
+  searchRow.appendChild(locBtn);
+
+  locBtn.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser');
+      return;
+    }
+    locBtn.disabled = true;
+    locBtn.textContent = 'Locating...';
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const { latitude, longitude } = position.coords;
+      console.log('User coords:', latitude, longitude);
+      await getWeatherByCoords(latitude, longitude);
+      locBtn.disabled = false;
+      locBtn.textContent = 'Use my location';
+    }, (err) => {
+      console.error('Geolocation error:', err);
+      alert('Unable to retrieve your location.');
+      locBtn.disabled = false;
+      locBtn.textContent = 'Use my location';
+    });
+  });
+})();
+
 async function getWeather(city) {
   try {
     const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
@@ -45,6 +82,41 @@ async function getWeather(city) {
   } catch (error) {
     console.error("Error fetching weather:", error);
     alert("Could not fetch weather data. Please check the city name.");
+  }
+}
+
+// Fetch current weather by coordinates and update UI
+async function getWeatherByCoords(lat, lon) {
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Location weather not found');
+    const data = await response.json();
+    console.log('Weather data (coords):', data);
+
+    // Extract and update UI same as getWeather
+    const temp = Math.round(data.main.temp);
+    const humidity = data.main.humidity;
+    const condition = data.weather[0].description;
+    const wind = Math.round(data.wind.speed);
+    const feelsLike = Math.round(data.main.feels_like);
+    const iconCode = data.weather[0].icon;
+    const iconUrl = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+
+    document.getElementById("location").textContent = `${data.name || 'Your location'}, ${data.sys && data.sys.country ? data.sys.country : ''}`;
+    document.getElementById("temperature").textContent = `${temp}°C`;
+    document.getElementById("description").textContent = condition;
+    document.getElementById("humidity").textContent = `${humidity}%`;
+    document.getElementById("wind").textContent = `${wind} km/h`;
+    document.getElementById("feels-like").textContent = `${feelsLike}°C`;
+    document.getElementById("weather-icon").src = iconUrl;
+
+    // Fetch forecast for coords
+    getFiveDayForecastByCoords(lat, lon);
+
+  } catch (error) {
+    console.error('Error fetching weather by coords:', error);
+    alert('Could not fetch weather for your location.');
   }
 }
 
@@ -117,6 +189,49 @@ async function getFiveDayForecast(city) {
   }
 }
 
+// Fetch 5-day forecast by coordinates and summarize by date
+async function getFiveDayForecastByCoords(lat, lon) {
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Forecast not available for coords');
+    const data = await response.json();
+    console.log('Raw 5-day forecast data (coords):', data);
+
+    // Group list items by date (YYYY-MM-DD)
+    const groups = {};
+    data.list.forEach(item => {
+      const date = item.dt_txt.split(' ')[0];
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(item);
+    });
+
+    const dates = Object.keys(groups).slice(0, 5);
+    const summary = dates.map(date => {
+      const items = groups[date];
+      const temps = items.map(i => i.main.temp);
+      const minTemp = Math.round(Math.min(...temps));
+      const maxTemp = Math.round(Math.max(...temps));
+
+      const freq = {};
+      items.forEach(i => {
+        const key = i.weather[0].icon + '|' + i.weather[0].description;
+        freq[key] = (freq[key] || 0) + 1;
+      });
+      const most = Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
+      const [iconCode, description] = most.split('|');
+
+      return { date, minTemp, maxTemp, iconCode, description };
+    });
+
+    console.log('5-day summary (coords):', summary);
+    renderForecast(summary);
+
+  } catch (error) {
+    console.error('Error fetching 5-day forecast by coords:', error);
+  }
+}
+
 // Render simple forecast cards into the DOM (creates container if missing)
 function renderForecast(summary) {
   let container = document.getElementById('forecast-container');
@@ -154,4 +269,4 @@ function renderForecast(summary) {
 
     container.appendChild(card);
   });
-}
+} ``
